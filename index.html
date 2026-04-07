@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Pendapatan Steam (Indonesia)</title>
+    <style>
+        :root {
+            --bg-color: #171a21;
+            --panel-bg: #1b2838;
+            --text-main: #c7d5e0;
+            --text-muted: #8f98a0;
+            --accent: #66c0f4;
+            --border: #2a475e;
+            --success: #a3d977;
+            --danger: #ff5c5c;
+        }
+        body {
+            font-family: 'Motiva Sans', 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px 15px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        .panel {
+            background: var(--panel-bg);
+            padding: 25px;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
+        }
+        h2 { 
+            margin-top: 0; 
+            color: #ffffff; 
+            font-size: 1.4em;
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 15px; 
+            margin-bottom: 20px;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+        label { display: block; margin-bottom: 6px; font-size: 0.9em; color: var(--accent); }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #323f4c;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        input:focus { outline: none; border-color: var(--accent); }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+        .result-row.total {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--success);
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+        .deduction { color: var(--danger); }
+        .hint { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel">
+        <h2>Input Penjualan & Parameter</h2>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Harga Global (USD)</label>
+                <input type="number" id="priceGlobal" value="9.99" step="0.01" oninput="calculate()">
+            </div>
+            <div class="form-group">
+                <label>Estimasi Terjual (Global)</label>
+                <input type="number" id="unitsGlobal" value="1000" oninput="calculate()">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Harga Regional (IDR)</label>
+                <input type="number" id="priceIDR" value="90999" oninput="calculate()">
+            </div>
+            <div class="form-group">
+                <label>Estimasi Terjual (ID)</label>
+                <input type="number" id="unitsIDR" value="300" oninput="calculate()">
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Refund Rate (%)</label>
+                <input type="number" id="refundRate" value="10" step="0.1" oninput="calculate()">
+            </div>
+            <div class="form-group">
+                <label>Potongan Steam (%)</label>
+                <input type="number" id="steamCut" value="30" oninput="calculate()">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>US Withholding Tax (%)</label>
+                <input type="number" id="usTax" value="10" oninput="calculate()">
+                <span class="hint">10% jika form W-8BEN aktif.</span>
+            </div>
+            <div class="form-group">
+                <label>Biaya Transfer Bank (USD)</label>
+                <input type="number" id="bankFee" value="15" oninput="calculate()">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Kurs USD ke IDR</label>
+                <input type="number" id="exchangeRate" value="16000" oninput="calculate()">
+            </div>
+            <div class="form-group">
+                <label>Pajak UMKM / PPh (%)</label>
+                <input type="number" id="localTax" value="0.5" step="0.1" oninput="calculate()">
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Kalkulasi Pendapatan Bersih</h2>
+        
+        <div class="result-row">
+            <span>Gross Revenue (USD + IDR)</span>
+            <span id="outGrossUSD">$0.00</span>
+        </div>
+        <div class="result-row deduction">
+            <span>Estimasi Refund</span>
+            <span id="outRefund">-$0.00</span>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px dotted var(--border); margin: 10px 0;">
+        
+        <div class="result-row">
+            <span>Net Sales (Setelah Refund)</span>
+            <span id="outNetSalesUSD" style="color: var(--accent);">$0.00</span>
+        </div>
+        <div class="result-row deduction">
+            <span>Bagi Hasil Steam (30%)</span>
+            <span id="outSteam">-$0.00</span>
+        </div>
+        <div class="result-row deduction">
+            <span>US Withholding Tax (10%)</span>
+            <span id="outUSTax">-$0.00</span>
+        </div>
+        <div class="result-row deduction">
+            <span>Biaya Wire Transfer (Bank)</span>
+            <span id="outBank">-$0.00</span>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px dotted var(--border); margin: 10px 0;">
+
+        <div class="result-row">
+            <span>Pendapatan Bersih (USD)</span>
+            <span id="outNetUSD" style="color: var(--accent); font-weight: bold;">$0.00</span>
+        </div>
+        
+        <div class="result-row" style="margin-top: 15px;">
+            <span>Konversi ke Rupiah</span>
+            <span id="outNetIDRBeforeTax">Rp 0</span>
+        </div>
+        <div class="result-row deduction">
+            <span>Pajak Lokal Indonesia</span>
+            <span id="outLocalTax">-Rp 0</span>
+        </div>
+
+        <div class="result-row total">
+            <span>Take-Home Pay Bersih</span>
+            <span id="outFinalIDR">Rp 0</span>
+        </div>
+        
+        <div class="result-row" style="margin-top: 20px; font-size: 0.9em; color: var(--text-muted);">
+            <span>Efisiensi (Porsi Dev dari Gross)</span>
+            <span id="outEffective">0.0%</span>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculate() {
+    // Ambil nilai dari input form
+    const priceGlobal = parseFloat(document.getElementById('priceGlobal').value) || 0;
+    const unitsGlobal = parseFloat(document.getElementById('unitsGlobal').value) || 0;
+    const priceIDR = parseFloat(document.getElementById('priceIDR').value) || 0;
+    const unitsIDR = parseFloat(document.getElementById('unitsIDR').value) || 0;
+    
+    const refundRate = parseFloat(document.getElementById('refundRate').value) / 100 || 0;
+    const steamCut = parseFloat(document.getElementById('steamCut').value) / 100 || 0;
+    const usTax = parseFloat(document.getElementById('usTax').value) / 100 || 0;
+    const bankFee = parseFloat(document.getElementById('bankFee').value) || 0;
+    
+    const exchangeRate = parseFloat(document.getElementById('exchangeRate').value) || 0;
+    const localTax = parseFloat(document.getElementById('localTax').value) / 100 || 0;
+
+    // Kalkulasi Pendapatan Kotor (Konversi IDR ke USD untuk penyederhanaan hitungan Steam)
+    const grossGlobalUSD = priceGlobal * unitsGlobal;
+    const grossIDR_USD = (priceIDR / exchangeRate) * unitsIDR;
+    const totalGrossUSD = grossGlobalUSD + grossIDR_USD;
+
+    // Potongan Refund
+    const totalRefundsUSD = totalGrossUSD * refundRate;
+    const netSalesUSD = totalGrossUSD - totalRefundsUSD;
+
+    // Potongan Steam
+    const steamShareUSD = netSalesUSD * steamCut;
+    const devShareUSD = netSalesUSD - steamShareUSD;
+
+    // US Withholding Tax (Dihitung dari porsi developer)
+    const usTaxAmountUSD = devShareUSD * usTax;
+    
+    // Potongan Bank
+    const finalUSD = Math.max(0, devShareUSD - usTaxAmountUSD - bankFee);
+
+    // Konversi ke IDR dan Potong Pajak Lokal
+    const finalGrossIDR = finalUSD * exchangeRate;
+    const localTaxIDR = finalGrossIDR * localTax;
+    const finalNetIDR = finalGrossIDR - localTaxIDR;
+    
+    // Persentase Take-Home (Keuntungan Bersih)
+    const effectiveRate = totalGrossUSD > 0 ? (finalUSD / totalGrossUSD) * 100 : 0;
+
+    // Format mata uang
+    const formatUSD = (val) => '$' + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const formatIDR = (val) => 'Rp ' + Math.round(val).toLocaleString('id-ID');
+
+    // Tampilkan di UI
+    document.getElementById('outGrossUSD').innerText = formatUSD(totalGrossUSD);
+    document.getElementById('outRefund').innerText = '-' + formatUSD(totalRefundsUSD);
+    document.getElementById('outNetSalesUSD').innerText = formatUSD(netSalesUSD);
+    document.getElementById('outSteam').innerText = '-' + formatUSD(steamShareUSD);
+    document.getElementById('outUSTax').innerText = '-' + formatUSD(usTaxAmountUSD);
+    document.getElementById('outBank').innerText = '-' + formatUSD(bankFee);
+    
+    document.getElementById('outNetUSD').innerText = formatUSD(finalUSD);
+    document.getElementById('outNetIDRBeforeTax').innerText = formatIDR(finalGrossIDR);
+    document.getElementById('outLocalTax').innerText = '-' + formatIDR(localTaxIDR);
+    document.getElementById('outFinalIDR').innerText = formatIDR(finalNetIDR);
+    document.getElementById('outEffective').innerText = effectiveRate.toFixed(1) + '%';
+}
+
+// Jalankan kalkulasi saat halaman pertama dibuka
+window.onload = calculate;
+</script>
+
+</body>
+</html>
